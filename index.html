@@ -1627,7 +1627,7 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const ov=$('#overlay'),phone=$('#phone'),title=$('#title'),nav=$('#nav'),titles={};
 let stack=['lock'],unlocked=false;
 function show(id,t){
-  if(id!=='ytv')$('#ytv').innerHTML='';$('#lbx').classList.remove('on');$('#cmpop').classList.remove('on');if(id!=='camera'&&window.camStop)camStop();if(id==='lock'&&window.musicStop)musicStop();if(id==='camera'&&window.camStart)camStart();
+  if(id!=='ytv')$('#ytv').innerHTML='';$('#lbx').classList.remove('on');$('#cmpop').classList.remove('on');if(id!=='camera'&&window.camStop)camStop();if(id==='camera'&&window.camStart)camStart();
   $$('.screen').forEach(s=>s.classList.remove('on'));$('#'+id).classList.add('on');
   if(t!==undefined)titles[id]=t;
   const w=id==='home'||id==='lock'||id==='pin';
@@ -1635,8 +1635,8 @@ function show(id,t){
   phone.classList.toggle('nvp',id==='naver'||id==='insta'||id==='xapp'||id==='gpt');phone.classList.toggle('ig',id==='insta');if(id!=='insta')phone.classList.remove('igdark');nav.style.display=(w||id==='naver'||id==='music'||id==='xapp'||id==='gpt')?'none':'flex';if(id==='insta')loadIG();if(id==='xapp')loadX();title.textContent=titles[id]||'';
 }
 $('#go').onclick=()=>{ov.classList.add('on');unlocked=false;stack=['lock'];show('lock')};
-$('#close').onclick=()=>{ov.classList.remove('on');$('#ytv').innerHTML='';if(window.camStop)camStop();if(window.musicStop)musicStop()};
-ov.onclick=e=>{if(e.target===ov){ov.classList.remove('on');$('#ytv').innerHTML='';if(window.camStop)camStop();if(window.musicStop)musicStop()}};
+$('#close').onclick=()=>{ov.classList.remove('on');$('#ytv').innerHTML='';if(window.camStop)camStop()};
+ov.onclick=e=>{if(e.target===ov){ov.classList.remove('on');$('#ytv').innerHTML='';if(window.camStop)camStop()}};
 $('#back').onclick=()=>{stack.pop();const id=stack[stack.length-1];show(id,titles[id])};
 $('#hi').onclick=()=>{if(unlocked){stack=['home'];show('home')}};
 (function(){
@@ -2040,54 +2040,13 @@ function pane(w){
   tabs.forEach(t=>t.classList.remove('on'));
   (w==='search'?tabs[4]:tabs[3]).classList.add('on');
 }
-/* 🎵 진짜 재생: iTunes 미리듣기(30초) — 곡 제목+아티스트로 검색해서 재생 */
-const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-const IC_PAUSE='<svg viewBox="0 0 24 24" width="30" height="30" fill="#000"><rect x="4.5" y="3.5" width="5" height="17" rx="1.2"/><rect x="14.5" y="3.5" width="5" height="17" rx="1.2"/></svg>';
-const IC_PLAY='<svg viewBox="0 0 24 24" width="30" height="30" fill="#000"><path d="M6 3.5l14 8.5-14 8.5z"/></svg>';
-const audio=new Audio();audio.preload='auto';
-let tok=0,curI=0,curK=0,real=false;
-const cache={};
-const norm=x=>String(x).toLowerCase().replace(/\s+/g,'');
-const clean=x=>String(x).replace(/\(.*?\)/g,'').replace(/\s+/g,' ').trim();
-async function findPreview(t){
-  const key=t[0]+'|'+t[1];
-  if(key in cache)return cache[key];
-  let url=null;
-  try{
-    const r=await fetch('https://itunes.apple.com/search?term='+encodeURIComponent(clean(t[0])+' '+t[1])+'&media=music&entity=song&country=KR&limit=10');
-    const j=await r.json(),rs=(j.results||[]).filter(x=>x.previewUrl);
-    const a=norm(t[1]),n=norm(clean(t[0]));
-    const hit=rs.find(x=>norm(x.artistName||'').includes(a)||a.includes(norm(x.artistName||'')))||rs.find(x=>norm(x.trackName||'').includes(n));
-    url=hit?hit.previewUrl:null;
-    cache[key]=url;
-  }catch(e){return null}
-  return url;
-}
-function setIcon(){mpl.innerHTML=audio.paused?IC_PLAY:IC_PAUSE}
-audio.addEventListener('play',setIcon);audio.addEventListener('pause',setIcon);
-audio.addEventListener('ended',()=>{if(!real)return;const n=PLAYLISTS[curI].tracks.length;playTrack(curI,(curK+1)%n,false,0)});
-async function playTrack(i,k,gesture,skips){
-  const p=PLAYLISTS[i],t=p.tracks[k],my=++tok;
-  curI=i;curK=k;real=false;
+function play(i,k){
+  const p=PLAYLISTS[i],t=p.tracks[k];
   miniT.textContent=t[0];
   miniC.style.background=p.bg;
   miniC.innerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px">'+p.emoji+'</div>';
-  if(i===cur)det.querySelectorAll('.mtr').forEach((r,n)=>r.classList.toggle('on',n===k));
-  if(gesture){audio.src=SILENT;audio.play().catch(()=>{})}
-  const url=await findPreview(t);
-  if(my!==tok)return;
-  if(!url){
-    if(skips+1<p.tracks.length)return playTrack(i,(k+1)%p.tracks.length,false,skips+1);
-    audio.pause();miniT.textContent='미리듣기를 찾을 수 없어요';return;
-  }
-  real=true;audio.src=url;
-  try{await audio.play()}catch(e){}
-  setIcon();
+  det.querySelectorAll('.mtr').forEach((r,n)=>r.classList.toggle('on',n===k));
 }
-function play(i,k){playTrack(i,k,true,0)}
-mpl.onclick=()=>{if(!real){playTrack(curI,curK,true,0);return}if(audio.paused)audio.play().catch(()=>{});else audio.pause()};
-window.musicStop=()=>{tok++;real=false;audio.pause()};
-setIcon();
 function openPL(i){
   cur=i;const p=PLAYLISTS[i];
   det.innerHTML='<div class="mdc" style="background:'+p.bg+'">'+p.emoji+'</div><div class="mdt">'+esc(p.name)+'</div><div class="mds">이민주 · '+p.tracks.length+'곡</div><div class="mbtns"><button data-a="play">▶ 재생</button><button data-a="shuf">임의 재생</button></div>'+p.tracks.map((t,n)=>'<div class="mtr" data-k="'+n+'"><span class="n">'+(n+1)+'</span><div class="tt"><b>'+esc(t[0])+'</b><small>'+esc(t[1])+'</small></div></div>').join('');
